@@ -1,5 +1,8 @@
-logs
-run.slurm
+results/
+screen-results/
+*.log
 *.png
 *.csv
+*.json
 __pycache__
+.venv/
