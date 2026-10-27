@@ -258,7 +258,7 @@ Question: does activating one math LoRA on Qwen3-1.7B add enough GPU energy, and
 accuracy unevenly enough across questions, to justify an energy-aware adapter router?
 
 ```bash
-cd /vast/home/e/eli22/efficient-ai
+cd ~/efficient-ai   # or wherever you cloned the repo
 bash prepare_lora.sh            # installs peft, downloads pinned adapter, runs CPU tests
 sbatch --export=ALL,MODE=smoke lora.sbatch
 # inspect lora-energy-JOBID.log and lora-results/smoke-JOBID/ (parse failures, truncation)

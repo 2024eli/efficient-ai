@@ -12,7 +12,8 @@
 #SBATCH --output=lora-energy-%j.log
 set -euo pipefail
 module load anaconda3
-cd /vast/home/e/eli22/efficient-ai
+# Submit from the repo directory: sbatch runs in the submission directory.
+cd "$SLURM_SUBMIT_DIR"
 source .venv/bin/activate
 export TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=8

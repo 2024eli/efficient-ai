@@ -1,10 +1,19 @@
 #!/bin/bash
-# Run once (CPU/login policy permitting) before lora.sbatch: compute jobs are offline.
+# Run once from the repo directory before lora.sbatch: compute jobs are offline.
+# Creates .venv here if missing (same pinned CUDA 12.8 torch as setup.sh), installs deps,
+# downloads models/adapter/data into the default HF cache (~/.cache/huggingface), runs tests.
 set -euo pipefail
 module load anaconda3
-cd /vast/home/e/eli22/efficient-ai
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+cd "$(dirname "$0")"
+if [ ! -d .venv ]; then
+  python -m venv .venv
+  source .venv/bin/activate
+  python -m pip install --upgrade pip
+  python -m pip install --no-cache-dir torch==2.7.0 --index-url https://download.pytorch.org/whl/cu128
+else
+  source .venv/bin/activate
+fi
+python -m pip install --no-cache-dir -r requirements.txt
 python -m pip check
 python - <<'PY'
 from huggingface_hub import snapshot_download
