@@ -99,9 +99,10 @@ def policies(q, ids, conditions):
     lora_correct = sum(bool(q[('lora', i)]['correct']) for i in ids)
     joules, accuracy = min_energy_for_accuracy(q, ids, lora_correct)
     rows.append(dict(policy='oracle min-energy matching always-lora accuracy', accuracy=accuracy, mean_gpu_joules=joules))
-    reference = next(r['mean_gpu_joules'] for r in rows if r['policy'] == 'always-lora')
-    for r in rows:
-        r['energy_saving_vs_always_lora_pct'] = (1 - r['mean_gpu_joules'] / reference) * 100 if r['mean_gpu_joules'] else None
+    for ref in ['base', 'lora']:
+        reference = next(r['mean_gpu_joules'] for r in rows if r['policy'] == f'always-{ref}')
+        for r in rows:
+            r[f'energy_saving_vs_always_{ref}_pct'] = (1 - r['mean_gpu_joules'] / reference) * 100 if r['mean_gpu_joules'] else None
     return rows
 
 

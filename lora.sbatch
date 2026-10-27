@@ -8,7 +8,7 @@
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=28
 #SBATCH --mem=224G
-#SBATCH --time=06:00:00
+#SBATCH --time=08:00:00
 #SBATCH --output=lora-energy-%j.log
 set -euo pipefail
 module load anaconda3
@@ -26,7 +26,7 @@ case "${MODE:-smoke}" in
   full) extra=(--n 150 --repeats 2 --fixed-n 50 --forward-n 30 --merged) ;;
   *) echo 'MODE must be smoke or full'; exit 2 ;;
 esac
-# THINKING=1: thinking mode for every condition, with a cap that fits base Qwen3's longer traces.
-if [ "${THINKING:-0}" = 1 ]; then extra+=(--thinking --max-new-tokens 2048); tag=-think; else tag=; fi
+# THINKING=1: thinking mode for every condition. Smoke 9634476 at 2048 truncated 3/20 8B and 2/20 base.
+if [ "${THINKING:-0}" = 1 ]; then extra+=(--thinking --max-new-tokens 4096); tag=-think; else tag=; fi
 python -u lora_energy.py --output "lora-results/${MODE:-smoke}${tag}-${SLURM_JOB_ID}" "${extra[@]}"
 python -u lora_analyze.py "lora-results/${MODE:-smoke}${tag}-${SLURM_JOB_ID}"

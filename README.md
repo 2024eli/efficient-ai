@@ -265,7 +265,7 @@ sbatch --export=ALL,MODE=smoke lora.sbatch
 sbatch --export=ALL,MODE=full lora.sbatch
 ```
 
-Thinking mode (every condition, 2048-token cap; results go to lora-results/MODE-think-JOBID):
+Thinking mode (every condition, 4096-token cap; results go to lora-results/MODE-think-JOBID):
 `sbatch --export=ALL,MODE=smoke,THINKING=1 lora.sbatch`. Smoke run 9632613 (thinking off) showed
 the adapter emits `</think>` then "Therefore, the answer is \boxed{X}", i.e. it was likely trained
 in thinking mode; with thinking off it scored 50% vs base 85% (5 unboxed answers, 3 of them right).
