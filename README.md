@@ -251,3 +251,78 @@ https://huggingface.co/Qwen/Qwen3-1.7B
 Local checks run on a Mac, not Betty. Dependency versions used for those checks
 may differ from the pinned Python 3.11 Betty environment; run test_screen.py remotely.
 No remote changes, installations or submissions were performed by this chat.
+
+# Experiment 1: LoRA energy overhead
+
+Question: does activating one math LoRA on Qwen3-1.7B add enough GPU energy, and change
+accuracy unevenly enough across questions, to justify an energy-aware adapter router?
+
+```bash
+cd /vast/home/e/eli22/efficient-ai
+bash prepare_lora.sh            # installs peft, downloads pinned adapter, runs CPU tests
+sbatch --export=ALL,MODE=smoke lora.sbatch
+# inspect lora-energy-JOBID.log and lora-results/smoke-JOBID/ (parse failures, truncation)
+sbatch --export=ALL,MODE=full lora.sbatch
+```
+
+Each job runs lora_analyze.py at the end; rerun it by hand with
+`python lora_analyze.py lora-results/full-JOBID`. It refuses incomplete runs.
+
+## Setup
+
+- Adapter: `ehzawad/qwen3-1.7b-gsm8k-grpo` pinned at commit 83adf766 (LoRA r=32, alpha=64,
+  all seven linear projections, ~34.9M params ≈ 2% of the base). Saved with PEFT 0.19.1;
+  verified to load with the pinned peft==0.15.2 + transformers==4.51.3.
+- One PeftModel stays resident. Base = the same object inside `disable_adapter()`, so both
+  conditions share weights, tokenizer, prompt and settings. A startup check fails the run
+  if enabling the adapter does not change logits.
+- `--merged` (on in both modes) also measures the adapter merged into a second copy of the
+  base weights. Merged LoRA does the same FLOPs as base, so the gap between `lora` and
+  `lora_merged` is the cost of *unmerged* serving: the cost a multi-adapter server pays.
+- Prompt: the adapter card's `\boxed{answer}` system prompt for EVERY condition, including
+  8B; scoring takes the last `\boxed{}` number. The week-1 8B results used the FINAL:
+  prompt, so they are not reused; 8B is rerun on the same questions with this prompt.
+- BF16, SDPA, batch=1, greedy, thinking off, 768-token cap (same as week 1).
+- Questions: deterministic GSM8K test subset (seed 42); the 20-question smoke set is a
+  prefix of the 150-question set. Exact-text overlap with GSM8K train is excluded.
+
+## Phases (all in lora-results/RUN/measurements.jsonl)
+
+- natural: generate to EOS. End-to-end energy/latency, accuracy, Tables A and B.
+- fixed: exactly 256 new tokens for every condition (EOS suppressed). Isolates the
+  per-token adapter overhead from changes in output length.
+- forward: 20 prefill-only passes over identical token sequences (prompt + base's
+  fixed-length output) per measurement. Pure compute overhead, amortizing NVML granularity.
+
+Within each phase/repeat, question order is shuffled and the conditions for one question
+run back to back in random order, so slow thermal/clock drift cancels. Two repeats in the
+full run give a repeat-to-repeat noise floor; an overhead smaller than that is not resolved.
+Energy is measured the same way as in week 1 (NVML board counter, including tokenization
+and decoding). Idle board watts are recorded at the start and end.
+
+## Outputs
+
+- table-a.csv: accuracy, J/request, latency, J/output token, output length per condition.
+- table-b.csv: both correct / base-wrong-LoRA-correct / base-correct-LoRA-wrong / both wrong.
+- policies.csv: always-base, always-lora, always-8b, oracle base/lora, oracle including 8B,
+  and the minimum-energy oracle assignment that matches always-lora accuracy, with savings
+  versus always-lora. These are hindsight ceilings: a real router can only do worse.
+- lora-report.json: overheads (ratio of means with paired bootstrap 95% CIs) for natural,
+  fixed and forward phases, merged-vs-base, repeat noise, parse/truncation counts.
+- per-question.csv: paired per-question correctness/energy/tokens for every condition.
+
+## Caveats
+
+- Contamination: the adapter card lists openai/gsm8k but not which split. GSM8K test
+  accuracy gains are a pipeline check, not a publishable result. For that, use a held-out
+  set the adapter cannot have seen (e.g. a GSM8K-style perturbation set).
+- The adapter was trained on a 4-bit NF4 (QLoRA) base; here it runs on BF16 weights as the
+  protocol requires. That small mismatch can affect its accuracy, not the energy comparison.
+- HF generate at batch=1 on a B200 is largely kernel-launch/CPU bound. Unmerged LoRA adds
+  ~2 extra small matmuls per adapted projection (7 x 28 layers), so measured overhead
+  reflects launch overhead more than FLOPs. Optimized multi-LoRA servers (vLLM/S-LoRA
+  style batching) may show a different overhead; conclusions are for this workload.
+- Verified locally on CPU (two GSM8K train questions): both conditions answer in
+  `\boxed{}` and score correctly, and the adapter emits a stray `</think>` even with
+  thinking off (the parser handles this). The LoRA's answers were ~40% shorter than base's, so
+  expect output length, not per-token overhead, to dominate natural-generation energy.

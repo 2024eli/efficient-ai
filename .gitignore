@@ -6,3 +6,4 @@ screen-results/
 *.json
 __pycache__
 .venv/
+lora-results/

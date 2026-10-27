@@ -5,6 +5,7 @@ accelerate==1.6.0
 datasets==3.5.0
 huggingface-hub==0.30.2
 safetensors==0.5.3
+peft==0.15.2
 nvidia-ml-py==12.570.86
 numpy==1.26.4
 scikit-learn==1.6.1
