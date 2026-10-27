@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from lora_energy import boxed_answer
+from lora_energy import boxed_answer, lenient_answer
 
 
 class LoraTests(unittest.TestCase):
@@ -24,6 +24,15 @@ class LoraTests(unittest.TestCase):
         self.assertEqual(boxed_answer('so \\boxed{72}\n</think>\n\nDone.'), '72')
         self.assertEqual(boxed_answer('work\n</think>\n\nTherefore \\boxed{72}.'), '72')
         self.assertEqual(boxed_answer('<think>\\boxed{1}</think>\\boxed{2}'), '2')
+
+    def test_lenient_parsing(self):
+        # Unboxed endings observed from the adapter in smoke run 9632613.
+        self.assertEqual(lenient_answer('$$\nx = 16\n$$\n\nSo the car took 16 hours to cover it.'), '16')
+        self.assertEqual(lenient_answer('the total is $15 + $3 = $18.'), '18')
+        self.assertEqual(lenient_answer('Therefore, Tim has 16 - 6 = 10 shoe boxes left.\n'), '1E+1')
+        self.assertEqual(lenient_answer('work\n</think>\n\nTherefore, the answer is \\boxed{104}.'), '104')
+        self.assertEqual(lenient_answer('no numbers here'), None)
+        self.assertIsNone(lenient_answer('<think>\nstill thinking 42'))
 
     def test_end_to_end_analysis(self):
         rows = []

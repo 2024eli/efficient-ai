@@ -26,5 +26,7 @@ case "${MODE:-smoke}" in
   full) extra=(--n 150 --repeats 2 --fixed-n 50 --forward-n 30 --merged) ;;
   *) echo 'MODE must be smoke or full'; exit 2 ;;
 esac
-python -u lora_energy.py --output "lora-results/${MODE:-smoke}-${SLURM_JOB_ID}" "${extra[@]}"
-python -u lora_analyze.py "lora-results/${MODE:-smoke}-${SLURM_JOB_ID}"
+# THINKING=1: thinking mode for every condition, with a cap that fits base Qwen3's longer traces.
+if [ "${THINKING:-0}" = 1 ]; then extra+=(--thinking --max-new-tokens 2048); tag=-think; else tag=; fi
+python -u lora_energy.py --output "lora-results/${MODE:-smoke}${tag}-${SLURM_JOB_ID}" "${extra[@]}"
+python -u lora_analyze.py "lora-results/${MODE:-smoke}${tag}-${SLURM_JOB_ID}"

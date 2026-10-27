@@ -6,6 +6,7 @@ import json
 import random
 import statistics
 from pathlib import Path
+from lora_energy import lenient_answer
 
 SMALL = ['base', 'lora']
 
@@ -21,7 +22,9 @@ def per_question(rows):
         result[key] = dict(gpu_joules=statistics.mean(r['gpu_joules'] for r in group),
             seconds=statistics.mean(r['seconds'] for r in group),
             output_tokens=statistics.mean(r.get('output_tokens', 0) for r in group),
-            correct=group[0].get('correct'), correct_flips=len({r.get('correct') for r in group}) > 1,
+            correct=group[0].get('correct'),
+            lenient_correct=lenient_answer(group[0]['response']) == group[0]['target'] if group[0].get('response') is not None else None,
+            correct_flips=len({r.get('correct') for r in group}) > 1,
             text_changed=len({r.get('response_sha256') for r in group}) > 1)
     return result
 
@@ -55,6 +58,7 @@ def summary_table(q, conditions, ids):
         tokens = sum(r['output_tokens'] for r in group)
         correct = sum(bool(r['correct']) for r in group)
         table.append(dict(condition=c, questions=len(group), accuracy=correct / len(group),
+            lenient_accuracy=statistics.mean(bool(r['lenient_correct']) for r in group),
             mean_gpu_joules=joules / len(group), mean_latency_ms=1000 * statistics.mean(r['seconds'] for r in group),
             joules_per_output_token=joules / tokens if tokens else None,
             mean_output_tokens=tokens / len(group), joules_per_correct=joules / correct if correct else None))

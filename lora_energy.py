@@ -58,6 +58,16 @@ def boxed_answer(text):
     return str(Decimal(value.replace(',', '')).normalize())
 
 
+def lenient_answer(text):
+    """Secondary score only: \\boxed{} if parseable, else the last number on the last line."""
+    strict = boxed_answer(text)
+    if strict is not None or ('<think>' in text and '</think>' not in text):
+        return strict
+    lines = [line for line in text.split('</think>')[-1].splitlines() if line.strip()]
+    numbers = re.findall(NUMBER, lines[-1]) if lines else []
+    return str(Decimal(numbers[-1].replace(',', '')).normalize()) if numbers else None
+
+
 def load_questions(n, seed):
     """Deterministic GSM8K-test subset; a smaller n is a prefix of a larger one."""
     from datasets import load_dataset
@@ -87,6 +97,8 @@ def main():
     p.add_argument('--n', type=int, default=150)
     p.add_argument('--repeats', type=int, default=2, help='measurement repeats (noise estimate)')
     p.add_argument('--max-new-tokens', type=int, default=768)
+    p.add_argument('--thinking', action='store_true',
+                   help='thinking mode for EVERY condition (the adapter appears to be trained this way)')
     p.add_argument('--fixed-tokens', type=int, default=256)
     p.add_argument('--fixed-n', type=int, default=50, help='questions in the fixed-length phase')
     p.add_argument('--forward-n', type=int, default=30, help='questions in the forward-pass phase')
@@ -163,7 +175,7 @@ def main():
     def encode(question):
         text = tok.apply_chat_template([{'role': 'system', 'content': SYSTEM},
             {'role': 'user', 'content': question}], tokenize=False,
-            add_generation_prompt=True, enable_thinking=False)
+            add_generation_prompt=True, enable_thinking=a.thinking)
         return tok(text, return_tensors='pt').to('cuda:0')
 
     def config_for(model, fixed):

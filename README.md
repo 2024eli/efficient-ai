@@ -265,6 +265,13 @@ sbatch --export=ALL,MODE=smoke lora.sbatch
 sbatch --export=ALL,MODE=full lora.sbatch
 ```
 
+Thinking mode (every condition, 2048-token cap; results go to lora-results/MODE-think-JOBID):
+`sbatch --export=ALL,MODE=smoke,THINKING=1 lora.sbatch`. Smoke run 9632613 (thinking off) showed
+the adapter emits `</think>` then "Therefore, the answer is \boxed{X}", i.e. it was likely trained
+in thinking mode; with thinking off it scored 50% vs base 85% (5 unboxed answers, 3 of them right).
+Table A's lenient_accuracy (last number on the last line when no box) separates format failures
+from reasoning failures; strict accuracy stays primary.
+
 Each job runs lora_analyze.py at the end; rerun it by hand with
 `python lora_analyze.py lora-results/full-JOBID`. It refuses incomplete runs.
 
