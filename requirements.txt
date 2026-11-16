@@ -10,3 +10,4 @@ nvidia-ml-py==12.570.86
 numpy==1.26.4
 scikit-learn==1.6.1
 pyarrow==17.0.0
+matplotlib==3.9.4

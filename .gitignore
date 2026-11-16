@@ -4,6 +4,8 @@ screen-results/
 *.png
 *.csv
 *.json
+*.jsonl
 __pycache__
 .venv/
+icl/results/
 lora-results/
